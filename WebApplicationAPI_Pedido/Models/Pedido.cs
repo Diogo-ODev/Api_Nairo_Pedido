@@ -9,5 +9,7 @@
         public string Status { get; set; } = "Pendente";
         public decimal ValorTotal { get; set; }
         public string Observacoes { get; set; }
+        public List<ItensPedido> ItensPedido { get; set; } = new List<ItensPedido>();
+
     }
 }
