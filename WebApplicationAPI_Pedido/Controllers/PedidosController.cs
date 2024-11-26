@@ -21,15 +21,36 @@ namespace LojaClientesApi.Controllers
         public IActionResult GetPedido(int id)
         {
             var pedido = _context.Pedidos
-                .Include(p => p.ItensPedido) // Inclui itens relacionados, se necessário
+                .Include(p => p.Cliente)
+                .Include(p => p.ItensPedido)
+                    .ThenInclude(ip => ip.Produto)
                 .FirstOrDefault(p => p.Id == id);
 
             if (pedido == null)
             {
-                return NotFound("Pedido não encontrado.");
+                return NotFound();
             }
 
-            return Ok(pedido);
+            // Mapear para DTO
+            var pedidoDTO = new PedidoDTO
+            {
+                Id = pedido.Id,
+                ClienteId = pedido.ClienteId,
+                NomeCliente = pedido.Cliente?.Nome,
+                DataPedido = pedido.DataPedido,
+                Status = pedido.Status,
+                ValorTotal = pedido.ValorTotal,
+                Observacoes = pedido.Observacoes,
+                ItensPedido = pedido.ItensPedido.Select(ip => new ItemPedidoDTO
+                {
+                    ProdutoId = ip.ProdutoId,
+                    NomeProduto = ip.Produto?.Nome,
+                    Quantidade = ip.Quantidade,
+                    PrecoUnitario = ip.PrecoUnitario
+                }).ToList()
+            };
+
+            return Ok(pedidoDTO);
         }
 
         [HttpPost]
@@ -40,7 +61,7 @@ namespace LojaClientesApi.Controllers
                 return BadRequest("Dados do pedido inválidos.");
             }
 
-            // Criar o Pedido a partir do DTO
+            // Mapear os dados do DTO para a entidade Pedido
             var pedido = new Pedido
             {
                 ClienteId = pedidoDTO.ClienteId,
@@ -55,14 +76,15 @@ namespace LojaClientesApi.Controllers
                 }).ToList()
             };
 
-            // Calcular o ValorTotal do pedido
+            // Calcular valor total
             pedido.ValorTotal = pedido.ItensPedido.Sum(item => item.Quantidade * item.PrecoUnitario);
 
-            // Adicionar o pedido no banco
+            // Adicionar ao banco de dados
             _context.Pedidos.Add(pedido);
             _context.SaveChanges();
 
             return CreatedAtAction(nameof(GetPedido), new { id = pedido.Id }, pedido);
         }
+
     }
 }
