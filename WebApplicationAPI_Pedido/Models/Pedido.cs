@@ -1,4 +1,6 @@
-﻿namespace WebApplicationAPI_Pedido.Models
+﻿using System;
+using System.Collections.Generic;
+namespace WebApplicationAPI_Pedido.Models
 {
     public class Pedido
     {
@@ -10,6 +12,5 @@
         public decimal ValorTotal { get; set; }
         public string Observacoes { get; set; }
         public List<ItensPedido> ItensPedido { get; set; } = new List<ItensPedido>();
-
     }
 }
