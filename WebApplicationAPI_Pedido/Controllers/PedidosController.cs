@@ -20,23 +20,24 @@ namespace LojaClientesApi.Controllers
         [HttpGet("{id}")]
         public IActionResult GetPedido(int id)
         {
+            // Carregar o pedido com os relacionamentos necessários
             var pedido = _context.Pedidos
-                .Include(p => p.Cliente)
-                .Include(p => p.ItensPedido)
-                    .ThenInclude(ip => ip.Produto)
+                .Include(p => p.Cliente) // Carrega o cliente relacionado
+                .Include(p => p.ItensPedido) // Carrega os itens do pedido
+                    .ThenInclude(ip => ip.Produto) // Carrega os produtos relacionados aos itens
                 .FirstOrDefault(p => p.Id == id);
 
             if (pedido == null)
             {
-                return NotFound();
+                return NotFound(new { Message = $"Pedido com ID {id} não encontrado." });
             }
 
-            // Mapear para DTO
+            // Mapear a entidade Pedido para o DTO PedidoDTO
             var pedidoDTO = new PedidoDTO
             {
                 Id = pedido.Id,
                 ClienteId = pedido.ClienteId,
-                NomeCliente = pedido.Cliente?.Nome,
+                NomeCliente = pedido.Cliente != null ? pedido.Cliente.Nome : "Cliente não encontrado", // Prevenção de null
                 DataPedido = pedido.DataPedido,
                 Status = pedido.Status,
                 ValorTotal = pedido.ValorTotal,
@@ -44,7 +45,7 @@ namespace LojaClientesApi.Controllers
                 ItensPedido = pedido.ItensPedido.Select(ip => new ItemPedidoDTO
                 {
                     ProdutoId = ip.ProdutoId,
-                    NomeProduto = ip.Produto?.Nome,
+                    NomeProduto = ip.Produto != null ? ip.Produto.Nome : "Produto não encontrado", // Prevenção de null
                     Quantidade = ip.Quantidade,
                     PrecoUnitario = ip.PrecoUnitario
                 }).ToList()
@@ -53,38 +54,69 @@ namespace LojaClientesApi.Controllers
             return Ok(pedidoDTO);
         }
 
+
         [HttpPost]
-        public IActionResult PostPedido(PedidoDTO pedidoDTO)
+        public IActionResult PostPedido(PedidoRequest pedidoRequest)
         {
-            if (pedidoDTO == null || pedidoDTO.ClienteId <= 0)
+            if (pedidoRequest == null || pedidoRequest.ClienteId <= 0)
             {
                 return BadRequest("Dados do pedido inválidos.");
             }
 
-            // Mapear os dados do DTO para a entidade Pedido
+            // Buscar o cliente pelo ID
+            var cliente = _context.Clientes.FirstOrDefault(c => c.Id == pedidoRequest.ClienteId);
+            if (cliente == null)
+            {
+                return NotFound(new { Message = "Cliente não encontrado." });
+            }
+
+            // Criar o Pedido
             var pedido = new Pedido
             {
-                ClienteId = pedidoDTO.ClienteId,
-                Observacoes = pedidoDTO.Observacoes,
-                DataPedido = DateTime.Now,
-                Status = "Pendente",
-                ItensPedido = pedidoDTO.ItensPedido.Select(item => new ItensPedido
+                ClienteId = pedidoRequest.ClienteId,
+                Observacoes = pedidoRequest.Observacoes,
+                DataPedido = DateTime.UtcNow,
+                Status = "Pendente", // Status padrão
+                ItensPedido = pedidoRequest.ItensPedido.Select(item => new ItensPedido
                 {
                     ProdutoId = item.ProdutoId,
                     Quantidade = item.Quantidade,
-                    PrecoUnitario = item.PrecoUnitario
+                    PrecoUnitario = _context.Produtos
+                        .Where(p => p.Id == item.ProdutoId)
+                        .Select(p => p.Preco)
+                        .FirstOrDefault()
                 }).ToList()
             };
 
-            // Calcular valor total
+            // Calcular o Valor Total
             pedido.ValorTotal = pedido.ItensPedido.Sum(item => item.Quantidade * item.PrecoUnitario);
 
             // Adicionar ao banco de dados
             _context.Pedidos.Add(pedido);
             _context.SaveChanges();
 
-            return CreatedAtAction(nameof(GetPedido), new { id = pedido.Id }, pedido);
+            // Retornar o DTO com NomeCliente preenchido
+            var pedidoDTO = new PedidoDTO
+            {
+                Id = pedido.Id,
+                ClienteId = pedido.ClienteId,
+                NomeCliente = cliente.Nome, // Preenchido aqui com base no cliente carregado
+                DataPedido = pedido.DataPedido,
+                Status = pedido.Status,
+                ValorTotal = pedido.ValorTotal,
+                Observacoes = pedido.Observacoes,
+                ItensPedido = pedido.ItensPedido.Select(ip => new ItemPedidoDTO
+                {
+                    ProdutoId = ip.ProdutoId,
+                    NomeProduto = _context.Produtos.FirstOrDefault(p => p.Id == ip.ProdutoId)?.Nome,
+                    Quantidade = ip.Quantidade,
+                    PrecoUnitario = ip.PrecoUnitario
+                }).ToList()
+            };
+
+            return CreatedAtAction(nameof(GetPedido), new { id = pedido.Id }, pedidoDTO);
         }
+
 
     }
 }

@@ -7,7 +7,7 @@ namespace WebApplicationAPI_Pedido.DTO
     {
         public int Id { get; set; }
         public int ClienteId { get; set; }
-        public string NomeCliente { get; set; } // Nome do cliente diretamente no DTO
+        public string NomeCliente { get; set; }
         public DateTime DataPedido { get; set; }
         public string Status { get; set; }
         public decimal ValorTotal { get; set; }
