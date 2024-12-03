@@ -36,7 +36,7 @@ namespace LojaClientesApi.Controllers
         {
             if (id != clienteAtualizado.Id)
             {
-                return BadRequest("ID do cliente não corresponde ao informado na URL.");
+                return BadRequest("ID do cliente não corresponde o informado na URL.");
             }
 
             // Busca o cliente no banco de dados
