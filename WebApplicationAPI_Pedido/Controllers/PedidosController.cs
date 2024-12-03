@@ -128,5 +128,30 @@ namespace LojaClientesApi.Controllers
             return CreatedAtAction(nameof(GetPedido), new { id = pedido.Id }, pedido);
         }
 
+        [HttpDelete("pedidos/{id}")]
+        public IActionResult DeletePedido(int id)
+        {
+            var pedido = _context.Pedidos.Include(p => p.ItensPedido).FirstOrDefault(p => p.Id == id);
+            if (pedido == null)
+            {
+                return NotFound("Pedido não encontrado.");
+            }
+
+            // Ajustar estoque dos produtos relacionados ao pedido
+            foreach (var item in pedido.ItensPedido)
+            {
+                var produto = _context.Produtos.FirstOrDefault(p => p.Id == item.ProdutoId);
+                if (produto != null)
+                {
+                    produto.Estoque += item.Quantidade; // Repor os itens no estoque
+                }
+            }
+
+            _context.Pedidos.Remove(pedido);
+            _context.SaveChanges();
+
+            return Ok($"Pedido com ID {id} foi deletado com sucesso.");
+        }
+
     }
 }

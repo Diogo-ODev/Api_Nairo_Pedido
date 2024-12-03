@@ -28,5 +28,21 @@ namespace LojaClientesApi.Controllers
             _context.SaveChanges();
             return CreatedAtAction(nameof(GetProdutos), new { id = produto.Id }, produto);
         }
+
+        [HttpDelete("produtos/{id}")]
+        public IActionResult DeleteProduto(int id)
+        {
+            var produto = _context.Produtos.FirstOrDefault(p => p.Id == id);
+            if (produto == null)
+            {
+                return NotFound("Produto não encontrado.");
+            }
+
+            _context.Produtos.Remove(produto);
+            _context.SaveChanges();
+
+            return Ok($"Produto com ID {id} foi deletado com sucesso.");
+        }
+
     }
 }

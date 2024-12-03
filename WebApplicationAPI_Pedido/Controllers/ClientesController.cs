@@ -32,20 +32,51 @@ namespace LojaClientesApi.Controllers
         [HttpPut("{id}")]
         public IActionResult PutCliente(int id, Cliente clienteAtualizado)
         {
-            var cliente = _context.Clientes.Find(id);
-            if (cliente == null) return NotFound();
+            if (id != clienteAtualizado.Id)
+            {
+                return BadRequest("ID do cliente não corresponde ao informado na URL.");
+            }
 
-            cliente.Nome = clienteAtualizado.Nome;
-            cliente.Sobrenome = clienteAtualizado.Sobrenome;
-            cliente.Email = clienteAtualizado.Email;
-            cliente.Telefone = clienteAtualizado.Telefone;
-            cliente.Endereco = clienteAtualizado.Endereco;
-            cliente.Cidade = clienteAtualizado.Cidade;
-            cliente.Estado = clienteAtualizado.Estado;
-            cliente.CEP = clienteAtualizado.CEP;
+            // Busca o cliente no banco de dados
+            var clienteExistente = _context.Clientes.FirstOrDefault(c => c.Id == id);
+            if (clienteExistente == null)
+            {
+                return NotFound("Cliente não encontrado.");
+            }
 
+            // Atualiza apenas os campos não vazios
+            clienteExistente.Nome = !string.IsNullOrWhiteSpace(clienteAtualizado.Nome) ? clienteAtualizado.Nome : clienteExistente.Nome;
+            clienteExistente.Sobrenome = !string.IsNullOrWhiteSpace(clienteAtualizado.Sobrenome) ? clienteAtualizado.Sobrenome : clienteExistente.Sobrenome;
+            clienteExistente.Email = !string.IsNullOrWhiteSpace(clienteAtualizado.Email) ? clienteAtualizado.Email : clienteExistente.Email;
+            clienteExistente.Telefone = !string.IsNullOrWhiteSpace(clienteAtualizado.Telefone) ? clienteAtualizado.Telefone : clienteExistente.Telefone;
+            clienteExistente.Endereco = !string.IsNullOrWhiteSpace(clienteAtualizado.Endereco) ? clienteAtualizado.Endereco : clienteExistente.Endereco;
+            clienteExistente.Cidade = !string.IsNullOrWhiteSpace(clienteAtualizado.Cidade) ? clienteAtualizado.Cidade : clienteExistente.Cidade;
+            clienteExistente.Estado = !string.IsNullOrWhiteSpace(clienteAtualizado.Estado) ? clienteAtualizado.Estado : clienteExistente.Estado;
+            clienteExistente.CEP = !string.IsNullOrWhiteSpace(clienteAtualizado.CEP) ? clienteAtualizado.CEP : clienteExistente.CEP;
+
+            // Não atualiza o dataCadastro, mantém o existente
+            clienteExistente.DataCadastro = clienteExistente.DataCadastro;
+
+            // Salva as alterações no banco de dados
             _context.SaveChanges();
-            return NoContent();
+
+            return Ok(clienteExistente);
         }
+
+        [HttpDelete("clientes/{id}")]
+        public IActionResult DeleteCliente(int id)
+        {
+            var cliente = _context.Clientes.FirstOrDefault(c => c.Id == id);
+            if (cliente == null)
+            {
+                return NotFound("Cliente não encontrado.");
+            }
+
+            _context.Clientes.Remove(cliente);
+            _context.SaveChanges();
+
+            return Ok($"Cliente com ID {id} foi deletado com sucesso.");
+        }
+
     }
 }
