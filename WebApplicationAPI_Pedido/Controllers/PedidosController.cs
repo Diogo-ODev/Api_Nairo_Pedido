@@ -7,6 +7,7 @@ using WebApplicationAPI_Pedido.Models;
 
 namespace LojaClientesApi.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class PedidosController : ControllerBase
@@ -17,7 +18,7 @@ namespace LojaClientesApi.Controllers
         {
             _context = context;
         }
-        [Authorize]
+        
         [HttpGet("{id}")]
         
         public IActionResult GetPedido(int id)
