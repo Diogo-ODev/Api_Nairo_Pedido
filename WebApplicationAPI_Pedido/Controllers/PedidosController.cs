@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplicationAPI_Pedido.Data;
 using WebApplicationAPI_Pedido.DTO;
@@ -16,8 +17,9 @@ namespace LojaClientesApi.Controllers
         {
             _context = context;
         }
-
+        [Authorize]
         [HttpGet("{id}")]
+        
         public IActionResult GetPedido(int id)
         {
             // Carregar o pedido com os relacionamentos necessários
