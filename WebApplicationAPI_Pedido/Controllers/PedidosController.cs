@@ -63,60 +63,70 @@ namespace LojaClientesApi.Controllers
                 return BadRequest("Dados do pedido inválidos.");
             }
 
-            // Buscar o cliente pelo ID
+            // Verifica se o cliente existe
             var cliente = _context.Clientes.FirstOrDefault(c => c.Id == pedidoRequest.ClienteId);
             if (cliente == null)
             {
                 return NotFound(new { Message = "Cliente não encontrado." });
             }
 
-            // Criar o Pedido
+            // Lista para acumular erros de estoque
+            var errosEstoque = new List<string>();
+
+            // Itera pelos itens do pedido para verificar estoque e reduzir
+            var itensPedido = new List<ItensPedido>();
+            foreach (var itemRequest in pedidoRequest.ItensPedido)
+            {
+                var produto = _context.Produtos.FirstOrDefault(p => p.Id == itemRequest.ProdutoId);
+                if (produto == null)
+                {
+                    return NotFound(new { Message = $"Produto com ID {itemRequest.ProdutoId} não encontrado." });
+                }
+
+                // Verifica se há estoque suficiente
+                if (produto.Estoque < itemRequest.Quantidade)
+                {
+                    errosEstoque.Add($"Estoque insuficiente para o produto {produto.Nome}. Estoque disponível: {produto.Estoque}, solicitado: {itemRequest.Quantidade}");
+                    continue;
+                }
+
+                // Reduz o estoque do produto
+                produto.Estoque -= itemRequest.Quantidade;
+
+                // Adiciona o item ao pedido
+                itensPedido.Add(new ItensPedido
+                {
+                    ProdutoId = itemRequest.ProdutoId,
+                    Quantidade = itemRequest.Quantidade,
+                    PrecoUnitario = produto.Preco // Preenche automaticamente o preço do produto
+                });
+            }
+
+            // Se houver erros de estoque, retorna uma resposta indicando os problemas
+            if (errosEstoque.Any())
+            {
+                return BadRequest(new { Message = "Não foi possível processar o pedido.", Erros = errosEstoque });
+            }
+
+            // Cria o pedido
             var pedido = new Pedido
             {
                 ClienteId = pedidoRequest.ClienteId,
                 Observacoes = pedidoRequest.Observacoes,
-                DataPedido = DateTime.UtcNow,
-                Status = "Pendente", // Status padrão
-                ItensPedido = pedidoRequest.ItensPedido.Select(item => new ItensPedido
-                {
-                    ProdutoId = item.ProdutoId,
-                    Quantidade = item.Quantidade,
-                    PrecoUnitario = _context.Produtos
-                        .Where(p => p.Id == item.ProdutoId)
-                        .Select(p => p.Preco)
-                        .FirstOrDefault()
-                }).ToList()
+                DataPedido = DateTime.Now,
+                Status = "Pendente",
+                ItensPedido = itensPedido,
+                ValorTotal = itensPedido.Sum(item => item.Quantidade * item.PrecoUnitario)
             };
 
-            // Calcular o Valor Total
-            pedido.ValorTotal = pedido.ItensPedido.Sum(item => item.Quantidade * item.PrecoUnitario);
-
-            // Adicionar ao banco de dados
+            // Adiciona o pedido ao banco de dados
             _context.Pedidos.Add(pedido);
+
+            // Salva as alterações no banco (inclui atualização do estoque)
             _context.SaveChanges();
 
-            // Retornar o DTO com NomeCliente preenchido
-            var pedidoDTO = new PedidoDTO
-            {
-                Id = pedido.Id,
-                ClienteId = pedido.ClienteId,
-                NomeCliente = cliente.Nome, // Preenchido aqui com base no cliente carregado
-                DataPedido = pedido.DataPedido,
-                Status = pedido.Status,
-                ValorTotal = pedido.ValorTotal,
-                Observacoes = pedido.Observacoes,
-                ItensPedido = pedido.ItensPedido.Select(ip => new ItemPedidoDTO
-                {
-                    ProdutoId = ip.ProdutoId,
-                    NomeProduto = _context.Produtos.FirstOrDefault(p => p.Id == ip.ProdutoId)?.Nome,
-                    Quantidade = ip.Quantidade,
-                    PrecoUnitario = ip.PrecoUnitario
-                }).ToList()
-            };
-
-            return CreatedAtAction(nameof(GetPedido), new { id = pedido.Id }, pedidoDTO);
+            return CreatedAtAction(nameof(GetPedido), new { id = pedido.Id }, pedido);
         }
-
 
     }
 }
